@@ -1,0 +1,16 @@
+anyio==4.11.0
+langchain_core==1.2.7
+langchain_google_genai==4.2.0
+langchain_pinecone==0.2.13
+langchain_text_splitters==1.1.0
+llama_parse==0.6.90
+mcp==1.25.0
+pinecone>=6.0.0,<=8.0.0
+pydantic==2.12.5
+python-dotenv==1.2.1
+sse_starlette==3.0.3
+starlette==0.51.0
+uvicorn==0.40.0
+supabase==2.27.2
+supabase-auth==2.27.2
+supabase-functions==2.27.2

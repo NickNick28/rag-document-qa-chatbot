@@ -1,0 +1,11 @@
+.env
+pineconecheck.py
+export_year_2568*
+test_client.py
+check_types.py
+simulate_concurrency.py
+venv/
+documents/
+# ไฟล์ขยะที่ Python สร้างขึ้นตอนรัน (Bytecode)
+__pycache__/
+*.pyc
