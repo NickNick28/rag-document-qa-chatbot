@@ -1,158 +1,164 @@
 # RAG Chatbot with MCP Server
 
-**Document question-answering application built with Next.js, Python, Model Context Protocol (MCP), and Retrieval-Augmented Generation (RAG).**
+**A document question-answering application built with Next.js, Python, Model Context Protocol (MCP), LangChain, and Retrieval-Augmented Generation (RAG).**
 
-This internship project explores how users can upload PDF documents, manage separate chatbot knowledge bases, and ask questions grounded in retrieved document content.
+This internship project explores how users can upload PDF documents, manage chatbot-specific knowledge bases, and ask natural-language questions supported by retrieved document content. The application combines document parsing, hybrid search, an LLM-powered agent, and a web-based management interface.
 
-> **Portfolio status:** Documentation in progress. Screenshots, architecture diagrams, and a sanitized demonstration will be added after review for permission to publish.
-
-<!-- Add an approved, redacted screenshot here later:
-![Chatbot interface](docs/screenshots/chatbot.png)
--->
+> **Portfolio note:** This repository documents an internship project. Screenshots and demonstrations should use approved, anonymized data. Publication of source code and materials is subject to the internship organization's permission.
 
 ## Overview
 
-Finding answers across multiple PDF documents can be time-consuming. This application combines document ingestion, vector retrieval, and an LLM-based chat interface to help users locate relevant information through natural-language questions.
+Finding information across multiple PDF documents, especially scanned pages and complex tables, can be time-consuming. This project uses a RAG workflow to extract and index document content, retrieve relevant passages, and help a language model formulate answers with source references when available.
 
-The repository contains two main applications: a Next.js web client and a Python MCP server.
+The project is organized into two main applications:
+
+- **Next.js web client:** Chat interface, bot and document management, authentication, streaming responses, and usage tracking.
+- **Python MCP server:** Document ingestion, chunking, embedding and indexing, knowledge-base retrieval, and document-related tools.
+
+## Application Screenshots
+
+The following images are loaded from `docs/images/`. Add screenshots with these **exact filenames** to display them automatically. Use sample documents and redact any private or organizational information.
+
+### 1. Chatbot Interface
+
+![Chatbot interface showing the conversation screen](docs/images/chatbot-interface.png)
+
+*Main chat interface for asking questions about uploaded documents.*
+
+### 2. AI Answer with Document References
+
+![AI response with document references](docs/images/chatbot-answer-citations.png)
+
+*Example of a document-grounded response with available source information. Use a verified, anonymized example.*
+
+### 3. PDF Upload and Document Management
+
+![PDF upload and document management screen](docs/images/document-upload.png)
+
+*Document upload and management interface for a chatbot knowledge base.*
+
+### 4. Bot Management
+
+![Chatbot management screen](docs/images/bot-management.png)
+
+*Interface for creating and managing chatbot configurations and knowledge bases.*
 
 ## Key Features
 
-- **Multiple chatbots:** Create and manage bots with separate knowledge bases.
-- **PDF ingestion:** Parse PDF files using LlamaParse, split extracted content into chunks, and generate embeddings.
-- **Hybrid retrieval:** Combine Pinecone vector similarity with Supabase keyword search and weighted ranking.
-- **Document management:** Maintain document metadata and chunks with Supabase (PostgreSQL).
-- **Web interface:** Chat, upload documents, and manage bots from the Next.js client.
-- **MCP integration:** Connect a LangChain tool-calling agent to `query_knowledge_base` and `check_available_doc_years` through the Python MCP server.
-- **Streaming chat:** Stream tool-status updates and model output, with chat history and token-usage tracking.
-- **Year-aware queries:** Check available document years and filter retrieval using Thai Buddhist Era years.
-
-## Screenshots & Demo
-
-Screenshots will be added after removing internal information and confirming publication permission.
-
-Suggested examples: chatbot interface, PDF upload, bot management, and an anonymized question-and-answer interaction.
-
+- **Multiple chatbot knowledge bases:** Separate documents and retrieval by `bot_id`.
+- **PDF ingestion:** Process PDF content using LlamaParse, including OCR-assisted extraction for scanned documents.
+- **Layout-aware chunking:** Handle text and structured tables with different chunking strategies while retaining relevant metadata.
+- **Hybrid retrieval:** Combine Pinecone vector similarity search and Supabase keyword search, followed by weighted ranking.
+- **Year-aware retrieval:** Check available document years and filter questions using Thai Buddhist Era (B.E.) years when appropriate.
+- **MCP tool integration:** Expose retrieval tools to a LangChain tool-calling agent through a Python MCP server.
+- **Streaming chat:** Stream answer text and tool-progress messages to the web client.
+- **Chat history and token usage:** Store conversation history and track reported or estimated token usage.
+- **Access controls:** Check authentication and bot visibility/ownership, with guest access for configured external bots.
 
 ## System Architecture
 
+The chat application uses a LangChain agent to call MCP tools when document retrieval is needed. The MCP server retrieves supporting evidence, and the agent uses that evidence to compose an answer.
+
 ```mermaid
 flowchart TD
-    A["User / Next.js Web Client"]
-    B["Next.js Chat API"]
-    C["LangChain Agent + Gemini"]
-    D["MCP Client (SSE)"]
-    E["Python MCP Server"]
-    F["Pinecone Vector Search"]
-    G["Supabase Keyword Search"]
-    H["Hybrid Ranking"]
-    I["Retrieved Evidence"]
-
-    A --> B
-    B --> C
-    C <--> D
-    D <--> E
-    E --> F
-    E --> G
-    F --> H
+    A["User / Next.js Web Client"] --> B["Next.js Chat API"]
+    B --> C["LangChain Tool-Calling Agent / Gemini"]
+    C <--> D["MCP Client / SSE"]
+    D <--> E["Python MCP Server"]
+    E --> F["Pinecone Vector Search"]
+    E --> G["Supabase Keyword Search"]
+    F --> H["Hybrid Ranking and Context"]
     G --> H
-    H --> I
-    I --> E
+    H --> E
 ```
 
-The diagram shows the main components involved in document retrieval. The agent uses retrieved evidence to generate responses, which are streamed back to the web client.
-
+**Architecture notes:** The Next.js API handles authentication, bot permissions, chat history, and response streaming. The Python MCP server provides retrieval and document-processing capabilities. Supabase also stores application records and document/chunk metadata; Pinecone provides vector search.
 
 ## RAG Workflow
 
-The system uses two main pipelines: document ingestion and retrieval-augmented answer generation.
+The system has two complementary workflows: **document ingestion** (preparing searchable knowledge) and **retrieval and answer generation** (responding to questions).
 
 ### 1. Data Ingestion Pipeline
 
 ![Data Ingestion Pipeline](docs/images/data-ingestion-pipeline.png)
 
-This pipeline processes uploaded PDF documents through OCR, layout-aware chunking, embedding generation, and vector storage.
+**Document ingestion steps:**
+
+1. A user uploads a PDF for a selected chatbot.
+2. The backend processes the document using LlamaParse and OCR-assisted extraction.
+3. The pipeline prepares page information and metadata, including document identity and page references where available.
+4. Text is split into overlapping chunks; tables receive structure-aware processing to preserve useful headers and context.
+5. Document chunks and metadata are stored in Supabase.
+6. Google Gemini embeddings are used to index searchable vectors in Pinecone.
+
+> The diagram originated from the project report and may illustrate components or ordering beyond the current checked backend implementation. In particular, PDF storage in Supabase Storage is not confirmed by the reviewed `server.py`; verify and revise that part of the diagram before public release.
 
 ### 2. RAG Retrieval Pipeline
 
 ![RAG Retrieval Pipeline](docs/images/rag-retrieval-pipeline.png)
 
-This pipeline retrieves relevant information using hybrid search, prepares supporting context, and uses a Gemini-powered LangChain agent to generate answers.
+**Question-answering steps:**
 
+1. The user submits a question through the Next.js chat interface.
+2. The Chat API checks access permissions and token allowance, then loads up to six recent chat messages.
+3. The Gemini-powered LangChain agent can call `check_available_doc_years` and `query_knowledge_base` through MCP.
+4. The Python backend searches Pinecone and Supabase, merges relevant results, and prepares context with source metadata.
+5. The agent generates a response informed by retrieved evidence. The system prompt requests source filenames and page references when available.
+6. The Chat API streams status updates and answer text to the client, then saves chat history and records token usage.
 
-### Document Ingestion Pipeline
+> **Implementation detail:** MCP uses SSE for the tool connection. The browser-facing Chat API uses a streamed HTTP response (`ReadableStream`); it is not itself an SSE endpoint. Citations and tool usage are prompted behaviors, not guarantees of factual correctness.
 
-```mermaid
-flowchart TD
-    A["PDF Upload"] --> B["MCP Server: Background Ingestion"]
-    B --> C["LlamaParse: OCR + Markdown Extraction"]
-    C --> D["Page Metadata + Table Reconstruction"]
-    D --> E{"Content Type?"}
+## Technical Design
 
-    E -->|Text| F["Recursive Text Chunking<br/>1600 chars / 200 overlap"]
-    E -->|Table| G["Table-Aware Chunking<br/>Preserve Headers + Row Overlap"]
+### Document processing and chunking
 
-    F --> H["Document Chunks + Metadata"]
-    G --> H
+The ingestion pipeline distinguishes ordinary text from structured tables. Text chunking uses overlapping segments, while table-aware processing aims to retain headers, row context, and useful page metadata. This helps retrieval return meaningful evidence rather than isolated text fragments.
 
-    H --> I["Supabase PostgreSQL<br/>Store Chunks + Metadata"]
-    H --> J["Gemini Embedding 001"]
-    J --> K["Pinecone Vector Database"]
-```
+### Hybrid retrieval
 
-**Pipeline explanation**
+The backend combines semantic similarity results from **Pinecone** with keyword results from **Supabase PostgreSQL**. It merges and ranks candidates to improve coverage for both natural-language questions and exact terms such as names, document years, and table labels. The reviewed implementation uses **similarity search plus keyword search and weighted ranking**, rather than MMR.
 
-1. **PDF Parsing:** Extract text and tables using LlamaParse with high-resolution OCR and Markdown output.
-2. **Page Processing:** Preserve page numbers, document years, section information, and table context.
-3. **Hybrid Chunking:** Apply recursive splitting for text and table-aware splitting for structured data.
-4. **Metadata Storage:** Save document chunks and metadata in Supabase (PostgreSQL).
-5. **Vector Indexing:** Generate embeddings using Gemini Embedding 001 and store vectors in Pinecone.
+### Agent and MCP integration
 
+The Chat API uses a **LangChain tool-calling agent** with Gemini (`gemini-3-flash-preview` in the reviewed route). It exposes two retrieval-related MCP tools to the agent:
 
-**Question answering**
+- `query_knowledge_base` — retrieve relevant document content for a chatbot, optionally filtered by year.
+- `check_available_doc_years` — inspect available document years to help resolve ambiguous questions.
 
-1. The Next.js API checks authentication, bot permissions, and token allowance.
-2. The agent loads up to six recent chat messages and receives the user question.
-3. The agent can call `check_available_doc_years` or `query_knowledge_base` via MCP. The prompt instructs it to clarify ambiguous years.
-4. The backend retrieves and ranks relevant document content from Pinecone and Supabase.
-5. Gemini generates a streamed response; the prompt requests document filename/page citations when context is available.
-6. The application saves chat history and records token usage (or an estimate if provider usage is unavailable).
+The Python MCP server also implements document-management tools used elsewhere in the application.
 
-> Tool use and citations are prompted behaviors, not guarantees of factual correctness. Test representative questions before making performance claims.
+### Streaming and usage tracking
 
-## My Contribution
-
-*To complete before publishing:* Describe your individual responsibilities, including which ingestion, retrieval, MCP, API, and UI components you personally implemented or improved. Distinguish individual work from team work.
-
-## Engineering Challenges
-
-*To complete with verified examples:* Document a concrete problem, the change you made, and how you checked the result. Possible topics to confirm against the project history include PDF parsing, chunking, retrieval relevance, and document metadata handling.
-
-## Results & Limitations
-
-No benchmark or accuracy metrics are claimed here. Add reproducible tests, representative anonymized examples, and known limitations when available.
+The API streams model output and tool-progress events. Conversation history is stored in Supabase. Token usage is read from model callbacks when available; otherwise the application falls back to an estimate based on question and response text, which may not cover the full prompt, retrieved context, or intermediate agent calls.
 
 ## Tech Stack
 
-| Area | Technology |
-| --- | --- |
-| Web client | Next.js, TypeScript, Tailwind CSS |
-| Python backend | Python, Starlette, MCP SDK |
-| Document parsing | LlamaParse |
-| Embeddings | Google `gemini-embedding-001` |
-| Chat model / orchestration | Gemini `gemini-3-flash-preview`, LangChain tool-calling agent |
-| Retrieval | Pinecone vector search + Supabase keyword search |
-| Streaming / transport | Next.js ReadableStream, MCP over SSE |
-| Vector database | Pinecone |
-| Data storage | Supabase (PostgreSQL) |
-
-> Confirm dependency versions against `package.json` and `requirements.txt` before publishing.
+| Area | Technology | Purpose |
+| --- | --- | --- |
+| Web application | Next.js, TypeScript, Tailwind CSS | UI and API routes |
+| Agent orchestration | LangChain | Tool-calling agent and model interaction |
+| Chat model | Google Gemini (`gemini-3-flash-preview` in reviewed code) | Answer generation |
+| Backend | Python, Starlette, MCP SDK | Document and retrieval tools |
+| Document parsing | LlamaParse | PDF text/table extraction and OCR-assisted parsing |
+| Embeddings | Google `gemini-embedding-001` | Vector representations |
+| Vector database | Pinecone | Semantic search |
+| Database | Supabase (PostgreSQL) | Metadata, chunks, chat history, and keyword search |
+| MCP transport | SSE | Next.js-to-Python MCP tool connection |
+| Response transport | HTTP streaming / ReadableStream | Progressive answer delivery |
 
 ## Repository Structure
 
 ```text
-.
+Project_intern_fix/
 ├── README.md
+├── docs/
+│   └── images/
+│       ├── chatbot-interface.png
+│       ├── chatbot-answer-citations.png
+│       ├── document-upload.png
+│       ├── bot-management.png
+│       ├── data-ingestion-pipeline.png
+│       └── rag-retrieval-pipeline.png
 ├── mcp-server-python/
 │   ├── .env.example
 │   ├── .gitignore
@@ -168,18 +174,18 @@ No benchmark or accuracy metrics are claimed here. Add reproducible tests, repre
     └── package.json
 ```
 
-The `.env` files, local virtual environments, and uploaded documents are not part of the public-facing project structure.
+> Image paths above are the **target structure**. Screenshots will appear in the README after files with the matching names are uploaded. Other folders and files are omitted for readability.
 
 ## Getting Started
 
-### Requirements
+### Prerequisites
 
-- Node.js and npm (check the current Next.js version for its minimum Node.js requirement)
-- Python 3.12 or a version compatible with `requirements.txt`
-- Access to the configured Google, LlamaCloud, Pinecone, and Supabase services
-- Authentication provider configuration where required
+- Node.js and npm compatible with the checked-in Next.js version
+- Python compatible with `mcp-server-python/requirements.txt`
+- Credentials/configuration for Google, LlamaCloud, Pinecone, and Supabase
+- Authentication provider configuration for the web application
 
-### 1. Configure the Python server
+### 1. Start the Python MCP server
 
 From the repository root:
 
@@ -190,51 +196,86 @@ python -m venv venv
 
 Activate the environment:
 
+**Windows PowerShell**
+
 ```powershell
-# Windows PowerShell
 .\venv\Scripts\Activate.ps1
+Copy-Item .env.example .env
 ```
 
-Or on macOS/Linux:
+**macOS / Linux**
 
 ```bash
 source venv/bin/activate
+cp .env.example .env
 ```
 
-Then install and run:
+Fill in the required values in `.env`, then run:
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env  # On Windows, copy the file manually or use Copy-Item
 python server.py
 ```
 
-Populate `.env` with your own credentials before starting the server. The original README documents the backend at `http://localhost:8000`.
+The previous project documentation uses `http://localhost:8000` for the Python backend. Verify the current server startup command and port against your local environment.
 
-### 2. Configure the web client
+### 2. Start the Next.js web client
 
-Open another terminal at the repository root:
+Open another terminal from the repository root:
 
 ```bash
 cd web-client
+```
+
+Copy `.env.example` to `.env.local` and fill in the required credentials and backend URL. Then run:
+
+```bash
 npm install
 npm run dev
 ```
 
-Copy `web-client/.env.example` to `web-client/.env.local` and fill in the required values **before** running the app. The original README documents the web client at `http://localhost:3000`.
+Open `http://localhost:3000` when the development server is ready.
 
-> The repository currently shows both `package-lock.json` and `pnpm-lock.yaml`; select and verify one package manager before publishing final setup instructions.
+> **Setup verification:** The repository has previously included both `package-lock.json` and `pnpm-lock.yaml`. Choose and verify one package manager before finalizing installation instructions. Never use real credentials in documentation.
 
-## Security & Publication
+## Engineering Challenges and Considerations
 
-- Do not commit real `.env` files, API keys, Supabase service-role credentials, uploaded internal documents, or personal data.
-- Use mock documents and anonymized screenshots for demonstrations.
-- Confirm ownership and publication permission for internship code and materials before making the repository public.
-- Check committed source and Git history for embedded secrets before publication; `.gitignore` alone is not a historical secret scan.
+The implementation addresses several practical engineering concerns:
 
-## Next Steps
+- **Complex PDFs and tables:** Layout-aware parsing and table-specific chunking help retain document structure.
+- **Retrieval relevance:** Hybrid search combines semantic and keyword signals instead of relying on vector similarity alone.
+- **Document provenance:** Metadata such as source files, years, and page references supports evidence-oriented responses.
+- **Response latency and visibility:** Streaming status events provides feedback while tools run and the answer is generated.
+- **Token usage:** History is limited to recent messages, and usage is tracked with an estimation fallback.
 
-- Add approved screenshots and a short demo.
-- Verify the end-to-end architecture and retrieval behavior against the current implementation.
-- Document individual contributions and technical decisions.
-- Add repeatable tests or anonymized evaluation examples.
+These describe design choices visible in the project. They are **not benchmark claims** or proof that all edge cases are resolved.
+
+## My Contribution
+
+**To finalize with verified personal responsibilities before public release.** Describe the components you personally designed, implemented, tested, or improved (for example: document parsing, chunking, retrieval, MCP server, Chat API, or frontend), and distinguish your work from any team contributions.
+
+## Results and Limitations
+
+This repository does not currently publish a reproducible accuracy or latency benchmark. Important limitations and follow-up checks include:
+
+- OCR and table extraction quality can vary with document layout and scan quality.
+- Retrieval quality depends on chunking, indexing, and the query.
+- LLM answers and citations should be checked against the original documents.
+- Token estimation can undercount full agent execution when provider usage data is unavailable.
+- Supabase/Pinecone consistency, document deletion behavior, and access controls should be tested end-to-end.
+- Report diagrams should be aligned with the final implementation before publication.
+
+## Security and Publication
+
+- Do not commit `.env` files, API keys, service-role keys, internal PDFs, or personal information.
+- Use anonymized screenshots and mock documents for any public demo.
+- Confirm permission to publish internship source code, diagrams, and screenshots.
+- Check the source **and Git history** for secrets before changing the repository to Public.
+
+## Future Improvements
+
+- Add approved screenshots and an anonymized demo scenario.
+- Verify setup instructions against the latest dependencies.
+- Add reproducible retrieval evaluations and sample question-answer tests.
+- Improve error handling and synchronization between metadata and vector storage.
+- Document individual contributions and validated technical outcomes.
