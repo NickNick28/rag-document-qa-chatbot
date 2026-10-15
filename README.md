@@ -65,6 +65,20 @@ The diagram shows the main components involved in document retrieval. The agent 
 
 ## RAG Workflow
 
+The system uses two main pipelines: document ingestion and retrieval-augmented answer generation.
+
+### 1. Data Ingestion Pipeline
+
+![Data Ingestion Pipeline](docs/images/data-ingestion-pipeline.png)
+
+This pipeline processes uploaded PDF documents through OCR, layout-aware chunking, embedding generation, and vector storage.
+
+### 2. RAG Retrieval Pipeline
+
+![RAG Retrieval Pipeline](docs/images/rag-retrieval-pipeline.png)
+
+This pipeline retrieves relevant information using hybrid search, prepares supporting context, and uses a Gemini-powered LangChain agent to generate answers.
+
 
 ### Document Ingestion Pipeline
 
