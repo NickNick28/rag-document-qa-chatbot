@@ -238,22 +238,48 @@ Open `http://localhost:3000` when the development server is ready.
 
 > **Setup verification:** The repository has previously included both `package-lock.json` and `pnpm-lock.yaml`. Choose and verify one package manager before finalizing installation instructions. Never use real credentials in documentation.
 
-## Engineering Challenges and Considerations
+## Engineering Challenges & Solutions
 
-The implementation addresses several practical engineering concerns:
+### 1. Extracting Structured Data from PDF Documents
 
-- **Complex PDFs and tables:** Layout-aware parsing and table-specific chunking help retain document structure.
-- **Retrieval relevance:** Hybrid search combines semantic and keyword signals instead of relying on vector similarity alone.
-- **Document provenance:** Metadata such as source files, years, and page references supports evidence-oriented responses.
-- **Response latency and visibility:** Streaming status events provides feedback while tools run and the answer is generated.
-- **Token usage:** History is limited to recent messages, and usage is tracked with an estimation fallback.
+**Challenge:** PDF documents containing complex tables and scanned content were difficult to parse accurately, which affected the quality of retrieved information.
 
-These describe design choices visible in the project. They are **not benchmark claims** or proof that all edge cases are resolved.
+**Approach:** Integrated LlamaParse with OCR capabilities and developed table-aware processing to better preserve structured content, including table headers and page context.
+
+### 2. Improving Retrieval Relevance
+
+**Challenge:** Semantic similarity search alone did not always retrieve the most relevant information, especially for questions involving specific keywords, document years, or tabular data.
+
+**Approach:** Implemented a hybrid retrieval strategy combining Pinecone vector search and Supabase keyword search, followed by weighted ranking and metadata-based filtering.
+
+### 3. Preserving Document Context and Citations
+
+**Challenge:** Splitting documents into smaller chunks could separate important contextual information from the original source.
+
+**Approach:** Added document metadata such as source filenames, document years, and page references, along with chunking strategies designed to preserve context across document sections.
+
+### 4. Managing LLM Context and Token Usage
+
+**Challenge:** Long chat histories and retrieved document content could increase LLM token consumption.
+
+**Approach:** Limited the conversation history sent to the agent, implemented token usage tracking, and applied context preparation techniques to reduce unnecessary information passed to the model.
 
 ## My Contribution
 
-**To finalize with verified personal responsibilities before public release.** Describe the components you personally designed, implemented, tested, or improved (for example: document parsing, chunking, retrieval, MCP server, Chat API, or frontend), and distinguish your work from any team contributions.
+**Role: AI / Backend Developer (Internship Project)**
 
+I was primarily responsible for implementing the application's core functionality, backend logic, and AI-powered document processing and retrieval workflows.
+
+My key contributions included:
+
+- **RAG Pipeline Development:** Implemented PDF parsing, OCR integration, document chunking, embedding generation, and vector storage workflows.
+- **Retrieval System:** Developed and improved hybrid retrieval using Pinecone vector similarity search and Supabase keyword search, including result ranking and metadata filtering.
+- **MCP Server Integration:** Implemented Python-based MCP tools to support document ingestion, knowledge-base queries, document management, and integration with the AI agent.
+- **LLM and Agent Integration:** Integrated Gemini with LangChain's tool-calling agent to retrieve relevant document context and generate responses.
+- **Backend and API Logic:** Implemented application logic for chatbot configuration, document handling, chat history, access control, and token usage tracking.
+- **Problem Solving and Optimization:** Investigated and improved PDF parsing, table extraction, chunking strategies, and retrieval relevance during development.
+
+**Collaboration:** A teammate assisted with the web interface design, while I focused on the underlying application logic and AI/backend implementation. I independently researched technical approaches, used AI-assisted coding tools to support development and debugging, and regularly reported progress to my internship supervisor.
 ## Results and Limitations
 
 This repository does not currently publish a reproducible accuracy or latency benchmark. Important limitations and follow-up checks include:
